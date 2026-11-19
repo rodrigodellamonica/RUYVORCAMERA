@@ -1,0 +1,41 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar projeto (aceita qualquer ZIP na raiz ou os arquivos soltos)
+        run: |
+          mkdir -p /tmp/src
+          ZIP=$(ls *.zip 2>/dev/null | head -n1 || true)
+          if [ -n "$ZIP" ]; then
+            unzip -q -o "$ZIP" -d /tmp/src
+          else
+            cp -r . /tmp/src/
+          fi
+          D=$(dirname "$(find /tmp/src -name settings.gradle.kts | head -n1)")
+          cp -r "$D" /tmp/proj
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.7
+
+      - name: Compilar APK
+        working-directory: /tmp/proj
+        run: gradle assembleRelease --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RUYVORCAMERA-APK
+          path: /tmp/proj/app/build/outputs/apk/release/*.apk
